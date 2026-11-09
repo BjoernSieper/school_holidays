@@ -21,8 +21,14 @@
       }
     },
     "calendar": {
-      "calendar": {
-        "default": "mdi:calendar-month"
+      "calendar_school_holidays": {
+        "default": "mdi:school-outline"
+      },
+      "calendar_public_holidays": {
+        "default": "mdi:party-popper"
+      },
+      "calendar_free_days": {
+        "default": "mdi:calendar-star"
       }
     },
     "sensor": {

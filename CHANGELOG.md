@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Calendar** *School holidays and days off* per region with school holidays, public
-  holidays (both from openholidaysapi.org, read-only) and your own free days.
+- Three **calendars** per region: *School holidays* and *Public holidays* (both from
+  openholidaysapi.org, read-only) and *Free days* (editable).
 - **Own free days** (e.g. movable days off, bridge days): add, edit and delete them as
-  all-day events in the calendar or via `calendar.create_event`. They are stored locally
+  all-day events in the *Free days* calendar or via `calendar.create_event`. They are stored locally
   per entry and removed together with the entry.
 - Binary sensors **Free day today/tomorrow** for your own free days.
 - Binary sensors **Day off today/tomorrow**: on for a school holiday, a public holiday or

@@ -1,8 +1,9 @@
-"""Calendar: school holidays, public holidays and user-defined free days.
+"""Calendars: school holidays, public holidays and user-defined free days.
 
-School and public holidays come from openholidaysapi.org and are read-only. Events
-created in the calendar (UI or ``calendar.create_event``) are stored as free days;
-only those can be edited or deleted.
+Each source is its own calendar entity, so it gets its own colour and can be shown or
+hidden on its own. School and public holidays come from openholidaysapi.org and are
+read-only. Only the free-days calendar accepts new events (UI or
+``calendar.create_event``) and lets you edit or delete them.
 """
 
 from __future__ import annotations
@@ -32,17 +33,21 @@ from .const import DOMAIN
 from .coordinator import SchoolHolidaysConfigEntry, SchoolHolidaysCoordinator
 from .entity import SchoolHolidaysEntity
 
-# Prefix for the read-only events, so they stand out from the user's free days.
-_PREFIX = {logic.KIND_SCHOOL: "🎒 ", logic.KIND_PUBLIC: "🎉 "}
-
 
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: SchoolHolidaysConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the calendar."""
-    async_add_entities([SchoolHolidaysCalendar(entry.runtime_data)])
+    """Set up the three calendars."""
+    coordinator = entry.runtime_data
+    async_add_entities(
+        [
+            SchoolHolidaysCalendar(coordinator),
+            PublicHolidaysCalendar(coordinator),
+            FreeDaysCalendar(coordinator),
+        ]
+    )
 
 
 def _to_event(p: logic.Period) -> CalendarEvent:
@@ -50,7 +55,7 @@ def _to_event(p: logic.Period) -> CalendarEvent:
     return CalendarEvent(
         start=p.start,
         end=p.end + timedelta(days=1),
-        summary=f"{_PREFIX.get(p.kind, '')}{p.name}".strip() or p.kind,
+        summary=p.name,
         description=p.description,
         uid=p.uid,  # None for read-only events -> no edit/delete in the UI
     )
@@ -88,23 +93,22 @@ def _fields(event: dict[str, Any]) -> tuple[date, date, str, str | None]:
     return start, end, summary, event.get(EVENT_DESCRIPTION) or None
 
 
-class SchoolHolidaysCalendar(SchoolHolidaysEntity, CalendarEntity):
-    """All holidays of the region in one calendar; free days can be added there."""
+class _PeriodCalendar(SchoolHolidaysEntity, CalendarEntity):
+    """A calendar that shows one list of periods from the coordinator."""
 
-    _attr_translation_key = "calendar"
-    _attr_supported_features = (
-        CalendarEntityFeature.CREATE_EVENT
-        | CalendarEntityFeature.DELETE_EVENT
-        | CalendarEntityFeature.UPDATE_EVENT
-    )
+    _key: str
 
     def __init__(self, coordinator: SchoolHolidaysCoordinator) -> None:
-        super().__init__(coordinator, "calendar")
+        super().__init__(coordinator, self._key)
+        self._attr_translation_key = self._key
+
+    def _periods(self) -> list[logic.Period]:
+        raise NotImplementedError
 
     @property
     def event(self) -> CalendarEvent | None:
         """The event running today, else the next one."""
-        nxt = logic.current_or_next(dt_util.now().date(), self.coordinator.all_periods)
+        nxt = logic.current_or_next(dt_util.now().date(), self._periods())
         return _to_event(nxt) if nxt else None
 
     async def async_get_events(
@@ -112,9 +116,39 @@ class SchoolHolidaysCalendar(SchoolHolidaysEntity, CalendarEntity):
     ) -> list[CalendarEvent]:
         """Events overlapping the requested window."""
         first, last = _inclusive_range(start_date, end_date)
-        return [
-            _to_event(p) for p in self.coordinator.all_periods if p.start <= last and p.end >= first
-        ]
+        return [_to_event(p) for p in self._periods() if p.start <= last and p.end >= first]
+
+
+class SchoolHolidaysCalendar(_PeriodCalendar):
+    """School holidays from openholidaysapi.org (read-only)."""
+
+    _key = "calendar_school_holidays"
+
+    def _periods(self) -> list[logic.Period]:
+        return self.coordinator.school_periods
+
+
+class PublicHolidaysCalendar(_PeriodCalendar):
+    """Public holidays from openholidaysapi.org (read-only)."""
+
+    _key = "calendar_public_holidays"
+
+    def _periods(self) -> list[logic.Period]:
+        return self.coordinator.public_periods
+
+
+class FreeDaysCalendar(_PeriodCalendar):
+    """The user's own free days; the only calendar that can be edited."""
+
+    _key = "calendar_free_days"
+    _attr_supported_features = (
+        CalendarEntityFeature.CREATE_EVENT
+        | CalendarEntityFeature.DELETE_EVENT
+        | CalendarEntityFeature.UPDATE_EVENT
+    )
+
+    def _periods(self) -> list[logic.Period]:
+        return self.coordinator.free_days.periods
 
     async def async_create_event(self, **kwargs: Any) -> None:
         """Add a free day (or a range of free days)."""
@@ -128,8 +162,8 @@ class SchoolHolidaysCalendar(SchoolHolidaysEntity, CalendarEntity):
         recurrence_id: str | None = None,
         recurrence_range: str | None = None,
     ) -> None:
-        """Change a free day; holidays from the API cannot be changed."""
-        self._check_editable(uid)
+        """Change a free day."""
+        self._check_exists(uid)
         start, end, summary, description = _fields(event)
         await self.coordinator.async_update_free_day(uid, start, end, summary, description)
 
@@ -139,11 +173,11 @@ class SchoolHolidaysCalendar(SchoolHolidaysEntity, CalendarEntity):
         recurrence_id: str | None = None,
         recurrence_range: str | None = None,
     ) -> None:
-        """Delete a free day; holidays from the API cannot be deleted."""
-        self._check_editable(uid)
+        """Delete a free day."""
+        self._check_exists(uid)
         await self.coordinator.async_delete_free_day(uid)
 
-    def _check_editable(self, uid: str) -> None:
+    def _check_exists(self, uid: str) -> None:
         if uid not in self.coordinator.free_days:
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="free_day_not_found"

@@ -78,8 +78,14 @@
       }
     },
     "calendar": {
-      "calendar": {
-        "name": "Vacances scolaires et jours libres"
+      "calendar_school_holidays": {
+        "name": "Vacances scolaires"
+      },
+      "calendar_public_holidays": {
+        "name": "Jours fériés"
+      },
+      "calendar_free_days": {
+        "name": "Jours libres"
       }
     },
     "sensor": {
@@ -102,7 +108,7 @@
       "message": "Les événements récurrents ne sont pas pris en charge. Crée chaque jour libre (ou une période) séparément."
     },
     "free_day_not_found": {
-      "message": "Seuls les jours libres que tu as ajoutés peuvent être modifiés ou supprimés. Les vacances scolaires et les jours fériés proviennent d'openholidaysapi.org."
+      "message": "Ce jour libre est introuvable. Il a peut-être déjà été supprimé."
     }
   }
 }

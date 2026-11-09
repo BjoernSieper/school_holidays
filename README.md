@@ -134,9 +134,11 @@ language at the time the entity was created**.
 | **School holidays tomorrow** | `binary_sensor` | `holiday_name`, `start_date`, `end_date` of the break covering **tomorrow** | `on` if tomorrow is inside a holiday period |
 | **Next school holiday** | `sensor` (`device_class: date`) | `holiday_name`, `start_date`, `end_date`, `days_until` | Start date of the current or next break, e.g. `2026-10-05` |
 | **Last successful update** | `sensor` (`timestamp`, diagnostic) | — | When data was last fetched successfully |
-| **Free day today** / **tomorrow** | `binary_sensor` | `name`, `description`, `start_date`, `end_date` of your own free day | `on` if the day is one of the [free days you added](#calendar-and-your-own-free-days) |
+| **Free day today** / **tomorrow** | `binary_sensor` | `name`, `description`, `start_date`, `end_date` of your own free day | `on` if the day is one of the [free days you added](#calendars-and-your-own-free-days) |
 | **Day off today** / **tomorrow** | `binary_sensor` | `school_holiday`, `public_holiday`, `free_day` (name of each, or `null`) | `on` if the day is a school holiday, a public holiday **or** one of your free days |
-| **School holidays and days off** | `calendar` | — | All school holidays, public holidays and your free days; `on` while one is running |
+| **School holidays** | `calendar` | — | School holidays (read-only); `on` during a break |
+| **Public holidays** | `calendar` | — | Public holidays (read-only); `on` on a public holiday |
+| **Free days** | `calendar` | — | Your own free days, [editable](#calendars-and-your-own-free-days); `on` on a free day |
 
 Notes:
 
@@ -156,30 +158,34 @@ Notes:
 | last update | `sensor.hesse_last_successful_update` | `sensor.hessen_letzte_erfolgreiche_aktualisierung` |
 | free day today | `binary_sensor.hesse_free_day_today` | `binary_sensor.hessen_freier_tag_heute` |
 | day off today | `binary_sensor.hesse_day_off_today` | `binary_sensor.hessen_frei_heute` |
-| calendar | `calendar.hesse_school_holidays_and_days_off` | `calendar.hessen_ferien_und_freie_tage` |
+| school holidays calendar | `calendar.hesse_school_holidays` | `calendar.hessen_schulferien` |
+| public holidays calendar | `calendar.hesse_public_holidays` | `calendar.hessen_feiertage` |
+| free days calendar | `calendar.hesse_free_days` | `calendar.hessen_freie_tage` |
 
 Check yours under **Settings → Devices & Services → Entities** (search for the region) and
 adapt the examples below.
 
-### Calendar and your own free days
+### Calendars and your own free days
 
-The calendar *School holidays and days off* shows, for your region:
+Each region gets three calendars, so each has its own colour and can be shown or hidden
+on its own in the **Calendar** dashboard:
 
-- 🎒 **school holidays** and 🎉 **public holidays** from openholidaysapi.org (read-only;
-  about half a year back and 13 months ahead), and
-- your **own free days**, e.g. movable days off (*bewegliche Ferientage*), bridge days or
-  teacher-training days.
+- **School holidays** and **Public holidays** from openholidaysapi.org (read-only; about
+  half a year back and 13 months ahead).
+- **Free days**: your own free days, e.g. movable days off (*bewegliche Ferientage*),
+  bridge days or teacher-training days. This is the only calendar you can edit.
 
-To add a free day, open the calendar in the **Calendar** dashboard, click a day (or use
-**+ Add event**) and save an all-day event. Single days and date ranges both work;
-recurring events are not supported. You can edit or delete your own free days the same
-way, but not the holidays that come from the API. Automations can add free days with
-`calendar.create_event` (the end date is **exclusive**, as usual in Home Assistant):
+To add a free day, open the **Calendar** dashboard, click a day (or use **+ Add event**),
+pick the *Free days* calendar and save an all-day event. Only this calendar is offered,
+because the other two are read-only. Single days and date ranges both work; recurring
+events are not supported. Click a free day to edit or delete it. Automations can add free
+days with `calendar.create_event` (the end date is **exclusive**, as usual in Home
+Assistant):
 
 ```yaml
 action: calendar.create_event
 target:
-  entity_id: calendar.hesse_school_holidays_and_days_off
+  entity_id: calendar.hesse_free_days
 data:
   summary: Movable day off
   start_date: "2026-11-02"
@@ -317,7 +323,7 @@ template:
           {% endif %}
 ```
 
-The integration has its [own calendar](#calendar-and-your-own-free-days). If you also want
+The integration has its [own calendars](#calendars-and-your-own-free-days). If you also want
 the breaks in another calendar, you can copy each upcoming break into a [Local Calendar](https://www.home-assistant.io/integrations/local_calendar/) (all-day
 events in Home Assistant use an **exclusive** end date, hence the `+ 1 day`):
 
@@ -404,10 +410,11 @@ und wann die **nächsten Ferien** beginnen. Daten: [OpenHolidays](https://openho
    `sensor.hessen_nachste_schulferien` (Attribute `holiday_name`, `start_date`, `end_date`,
    `days_until`). Die Beispiele oben verwenden englische IDs (`hesse_…`) — bitte anpassen.
 
-**Kalender und eigene freie Tage:** Der Kalender `calendar.hessen_ferien_und_freie_tage`
-zeigt Schulferien 🎒, Feiertage 🎉 und deine eigenen freien Tage. Eigene freie Tage (z. B.
-bewegliche Ferientage oder Brückentage) legst du im **Kalender**-Dashboard als ganztägigen
-Termin an; nur diese lassen sich bearbeiten oder löschen. Dazu gibt es:
+**Kalender und eigene freie Tage:** Pro Region gibt es drei Kalender:
+`calendar.hessen_schulferien` und `calendar.hessen_feiertage` (nur lesen) sowie
+`calendar.hessen_freie_tage` für deine eigenen freien Tage (z. B. bewegliche Ferientage
+oder Brückentage). Die legst du im **Kalender**-Dashboard als ganztägigen Termin im
+Kalender *Freie Tage* an und kannst sie dort auch bearbeiten oder löschen. Dazu gibt es:
 
 - `binary_sensor.hessen_freier_tag_heute` / `_morgen`: `on` an deinen eigenen freien Tagen.
 - `binary_sensor.hessen_frei_heute` / `_morgen`: `on` bei Schulferien, Feiertag **oder**

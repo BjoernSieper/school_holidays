@@ -78,8 +78,14 @@
       }
     },
     "calendar": {
-      "calendar": {
-        "name": "Vacaciones escolares y días libres"
+      "calendar_school_holidays": {
+        "name": "Vacaciones escolares"
+      },
+      "calendar_public_holidays": {
+        "name": "Festivos"
+      },
+      "calendar_free_days": {
+        "name": "Días libres"
       }
     },
     "sensor": {
@@ -102,7 +108,7 @@
       "message": "Los eventos periódicos no son compatibles. Crea cada día libre (o un rango de fechas) por separado."
     },
     "free_day_not_found": {
-      "message": "Solo se pueden modificar o eliminar los días libres que hayas añadido tú. Las vacaciones escolares y los festivos provienen de openholidaysapi.org."
+      "message": "No se encontró este día libre. Puede que ya se haya eliminado."
     }
   }
 }

@@ -78,8 +78,14 @@
       }
     },
     "calendar": {
-      "calendar": {
-        "name": "Ferien und freie Tage"
+      "calendar_school_holidays": {
+        "name": "Schulferien"
+      },
+      "calendar_public_holidays": {
+        "name": "Feiertage"
+      },
+      "calendar_free_days": {
+        "name": "Freie Tage"
       }
     },
     "sensor": {
@@ -102,7 +108,7 @@
       "message": "Wiederkehrende Termine werden nicht unterstützt. Bitte jeden freien Tag (oder einen Zeitraum) einzeln anlegen."
     },
     "free_day_not_found": {
-      "message": "Nur selbst angelegte freie Tage können geändert oder gelöscht werden. Schulferien und Feiertage kommen von openholidaysapi.org."
+      "message": "Dieser freie Tag wurde nicht gefunden. Vielleicht wurde er schon gelöscht."
     }
   }
 }

@@ -84,8 +84,14 @@ async def _create(hass: HomeAssistant, entity_id: str, start: date, end: date, s
 async def test_entity_ids(hass: HomeAssistant, config_entry) -> None:
     """New entities get stable, readable entity IDs."""
     await _setup(hass, config_entry)
-    assert _eid(hass, config_entry, "calendar", "calendar") == (
-        "calendar.hesse_school_holidays_and_days_off"
+    assert _eid(hass, config_entry, "calendar", "calendar_school_holidays") == (
+        "calendar.hesse_school_holidays"
+    )
+    assert _eid(hass, config_entry, "calendar", "calendar_public_holidays") == (
+        "calendar.hesse_public_holidays"
+    )
+    assert _eid(hass, config_entry, "calendar", "calendar_free_days") == (
+        "calendar.hesse_free_days"
     )
     assert _eid(hass, config_entry, "binary_sensor", "free_day_today") == (
         "binary_sensor.hesse_free_day_today"
@@ -98,20 +104,30 @@ async def test_entity_ids(hass: HomeAssistant, config_entry) -> None:
 async def test_calendar_shows_school_and_public_holidays(
     hass: HomeAssistant, config_entry, public_holidays_api
 ) -> None:
-    """Both API sources appear as read-only all-day events (exclusive end)."""
+    """Each API source has its own calendar with all-day events (exclusive end)."""
     public_holidays_api.return_value = [_raw(date(2026, 10, 3), date(2026, 10, 3), "Unity Day")]
     await _setup(hass, config_entry, [_raw(date(2026, 10, 5), date(2026, 10, 17), "Autumn")])
-    cal = _eid(hass, config_entry, "calendar", "calendar")
+    school = _eid(hass, config_entry, "calendar", "calendar_school_holidays")
+    public = _eid(hass, config_entry, "calendar", "calendar_public_holidays")
+    free = _eid(hass, config_entry, "calendar", "calendar_free_days")
 
-    events = await _events(hass, cal, date(2026, 10, 1), date(2026, 11, 1))
-    assert [(e["summary"], e["start"], e["end"]) for e in events] == [
-        ("🎉 Unity Day", "2026-10-03", "2026-10-04"),
-        ("🎒 Autumn", "2026-10-05", "2026-10-18"),
+    window = (date(2026, 10, 1), date(2026, 11, 1))
+    school_events = await _events(hass, school, *window)
+    public_events = await _events(hass, public, *window)
+    assert [(e["summary"], e["start"], e["end"]) for e in school_events] == [
+        ("Autumn", "2026-10-05", "2026-10-18")
     ]
-    # The running event is the calendar's state.
-    state = hass.states.get(cal)
-    assert state.state == "on"
-    assert state.attributes["message"] == "🎒 Autumn"
+    assert [(e["summary"], e["start"], e["end"]) for e in public_events] == [
+        ("Unity Day", "2026-10-03", "2026-10-04")
+    ]
+    assert await _events(hass, free, *window) == []
+    # The running (or next) event is each calendar's state.
+    assert hass.states.get(school).state == "on"
+    assert hass.states.get(school).attributes["message"] == "Autumn"
+    # Unity Day is already over and no later public holiday is known.
+    assert hass.states.get(public).state == "off"
+    assert "message" not in hass.states.get(public).attributes
+    assert hass.states.get(free).state == "off"
     # Public holidays are fetched for the same window and region.
     args = public_holidays_api.call_args.args
     assert args[1:4] == ("DE", "DE-HE", "2026-04-17")
@@ -120,7 +136,7 @@ async def test_calendar_shows_school_and_public_holidays(
 async def test_create_free_day_turns_on_sensors(hass: HomeAssistant, config_entry) -> None:
     """A free day created in the calendar drives the free-day and day-off sensors."""
     await _setup(hass, config_entry)
-    cal = _eid(hass, config_entry, "calendar", "calendar")
+    cal = _eid(hass, config_entry, "calendar", "calendar_free_days")
     free_tomorrow = _eid(hass, config_entry, "binary_sensor", "free_day_tomorrow")
     off_tomorrow = _eid(hass, config_entry, "binary_sensor", "day_off_tomorrow")
     school_tomorrow = _eid(hass, config_entry, "binary_sensor", "tomorrow")
@@ -175,7 +191,7 @@ async def test_update_and_delete_free_day(
 ) -> None:
     """Free days can be edited and deleted through the calendar UI (websocket API)."""
     await _setup(hass, config_entry)
-    cal = _eid(hass, config_entry, "calendar", "calendar")
+    cal = _eid(hass, config_entry, "calendar", "calendar_free_days")
     free_today = _eid(hass, config_entry, "binary_sensor", "free_day_today")
     await _create(hass, cal, TOMORROW, TOMORROW + timedelta(days=1), "Bridge day")
     uid = config_entry.runtime_data.free_days.periods[0].uid
@@ -207,17 +223,21 @@ async def test_update_and_delete_free_day(
 
 
 async def test_api_events_are_read_only(hass: HomeAssistant, config_entry) -> None:
-    """School holidays have no uid; unknown uids cannot be changed or deleted."""
+    """Only the free-days calendar is editable; unknown free days raise an error."""
     await _setup(hass, config_entry, [_raw(TOMORROW, TOMORROW, "Autumn")])
-    cal = _eid(hass, config_entry, "calendar", "calendar")
-    entity = hass.data["entity_components"]["calendar"].get_entity(cal)
-    (event,) = await entity.async_get_events(
+    components = hass.data["entity_components"]["calendar"]
+    for key in ("calendar_school_holidays", "calendar_public_holidays"):
+        read_only = components.get_entity(_eid(hass, config_entry, "calendar", key))
+        assert not read_only.supported_features
+    school = components.get_entity(_eid(hass, config_entry, "calendar", "calendar_school_holidays"))
+    (event,) = await school.async_get_events(
         hass, dt_util.start_of_local_day(TODAY), dt_util.start_of_local_day(TODAY + timedelta(7))
     )
     assert event.uid is None
-    assert event.summary == "🎒 Autumn"
+    assert event.summary == "Autumn"
 
-    entity = hass.data["entity_components"]["calendar"].get_entity(cal)
+    entity = components.get_entity(_eid(hass, config_entry, "calendar", "calendar_free_days"))
+    assert entity.supported_features
     with pytest.raises(HomeAssistantError) as err:
         await entity.async_delete_event("nope")
     assert err.value.translation_key == "free_day_not_found"
@@ -230,7 +250,7 @@ async def test_api_events_are_read_only(hass: HomeAssistant, config_entry) -> No
 async def test_recurring_events_rejected(hass: HomeAssistant, config_entry) -> None:
     """RRULEs are rejected with a translated error instead of being ignored."""
     await _setup(hass, config_entry)
-    cal = _eid(hass, config_entry, "calendar", "calendar")
+    cal = _eid(hass, config_entry, "calendar", "calendar_free_days")
     entity = hass.data["entity_components"]["calendar"].get_entity(cal)
     with pytest.raises(HomeAssistantError) as err:
         await entity.async_create_event(
@@ -242,7 +262,7 @@ async def test_recurring_events_rejected(hass: HomeAssistant, config_entry) -> N
 async def test_timed_event_covers_its_days(hass: HomeAssistant, config_entry) -> None:
     """A timed event is stored as the local days it touches (midnight end excluded)."""
     await _setup(hass, config_entry)
-    cal = _eid(hass, config_entry, "calendar", "calendar")
+    cal = _eid(hass, config_entry, "calendar", "calendar_free_days")
     entity = hass.data["entity_components"]["calendar"].get_entity(cal)
     tz = dt_util.get_default_time_zone()
     await entity.async_create_event(
@@ -258,7 +278,7 @@ async def test_timed_event_covers_its_days(hass: HomeAssistant, config_entry) ->
 async def test_free_days_persist_and_survive_api_errors(hass: HomeAssistant, config_entry) -> None:
     """Free days are stored, reloaded and independent of the holiday API."""
     await _setup(hass, config_entry)
-    cal = _eid(hass, config_entry, "calendar", "calendar")
+    cal = _eid(hass, config_entry, "calendar", "calendar_free_days")
     await _create(hass, cal, TODAY, TOMORROW, "Teacher training")
 
     with patch(API, return_value=[]):
@@ -288,7 +308,7 @@ async def test_remove_entry_deletes_free_days(
 ) -> None:
     """Deleting the integration entry also deletes its stored free days."""
     await _setup(hass, config_entry)
-    cal = _eid(hass, config_entry, "calendar", "calendar")
+    cal = _eid(hass, config_entry, "calendar", "calendar_free_days")
     await _create(hass, cal, TODAY, TOMORROW, "Free")
     key = f"{DOMAIN}.{config_entry.entry_id}.free_days"
     assert hass_storage[key]["data"]["free_days"][0]["name"] == "Free"

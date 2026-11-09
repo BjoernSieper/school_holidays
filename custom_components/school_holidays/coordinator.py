@@ -160,12 +160,14 @@ class SchoolHolidaysCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
 
     @property
-    def all_periods(self) -> list[logic.Period]:
-        """School holidays, public holidays and free days, sorted (for the calendar)."""
-        return sorted(
-            [*self._periods, *self._public, *self.free_days.periods],
-            key=lambda p: (p.start, p.end),
-        )
+    def school_periods(self) -> list[logic.Period]:
+        """School holidays from the API, sorted (for the school-holidays calendar)."""
+        return self._periods
+
+    @property
+    def public_periods(self) -> list[logic.Period]:
+        """Public holidays from the API, sorted (for the public-holidays calendar)."""
+        return self._public
 
     async def async_add_free_day(self, start, end, name: str, description: str | None) -> str:
         """Store a new free day and update all entities right away."""
