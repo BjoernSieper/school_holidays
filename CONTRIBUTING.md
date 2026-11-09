@@ -9,12 +9,14 @@ how to set up a development environment and how to get changes merged.
 custom_components/school_holidays/   # the integration
   __init__.py                        # setup/unload of the config entry
   api.py                             # async client for openholidaysapi.org
-  binary_sensor.py                   # "today" / "tomorrow" binary sensors
+  binary_sensor.py                   # today/tomorrow: school holidays, free day, day off
+  calendar.py                        # calendars: school holidays, public holidays, free days
   sensor.py                          # "next school holiday" + "last successful update" sensors
   config_flow.py                     # UI config/reconfigure flow (country → region) + options
   coordinator.py                     # DataUpdateCoordinator (midnight rollover, keep-last, repair issue)
   diagnostics.py                     # config-entry diagnostics
   entity.py                          # shared base entity
+  free_days.py                       # storage of the user-defined free days
   logic.py                           # date/holiday evaluation helpers
   const.py                           # constants
   manifest.json / strings.json       # integration metadata + UI strings

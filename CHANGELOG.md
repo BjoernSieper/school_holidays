@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-09
+
 ### Added
 
 - Three **calendars** per region: *School holidays* and *Public holidays* (both from
@@ -112,6 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Translations for English, German, Spanish and French.
 
 [Unreleased]: https://github.com/Jo-Highness/school_holidays/compare/v1.1.0...HEAD
+[1.2.0]: https://github.com/Jo-Highness/school_holidays/compare/v1.1.0...BjoernSieper:school_holidays:main
 [1.1.0]: https://github.com/Jo-Highness/school_holidays/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/Jo-Highness/school_holidays/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Jo-Highness/school_holidays/compare/v1.0.0...v1.0.1
