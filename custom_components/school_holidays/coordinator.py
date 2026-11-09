@@ -24,9 +24,15 @@ from .const import (
     CONF_SUBDIVISION_NAME,
     CONF_UPDATE_HOURS,
     DATA_CURRENT,
+    DATA_DAY_OFF_TODAY,
+    DATA_DAY_OFF_TOMORROW,
+    DATA_FREE_DAYS,
+    DATA_FREE_TODAY,
+    DATA_FREE_TOMORROW,
     DATA_LAST_SUCCESS,
     DATA_NEXT,
     DATA_PERIODS,
+    DATA_PUBLIC_HOLIDAYS,
     DATA_TODAY,
     DATA_TOMORROW,
     DATA_TOMORROW_PERIOD,
@@ -36,10 +42,12 @@ from .const import (
     ISSUE_STALE_DATA,
     LANGUAGE_AUTO,
     LOOKAHEAD_DAYS,
+    LOOKBACK_DAYS,
     MAX_UPDATE_HOURS,
     MIN_UPDATE_HOURS,
     STALE_AFTER,
 )
+from .free_days import FreeDayStore
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,7 +57,28 @@ type SchoolHolidaysConfigEntry = ConfigEntry[SchoolHolidaysCoordinator]
 def _period_dict(p: logic.Period | None) -> dict | None:
     if p is None:
         return None
-    return {"name": p.name, "start": p.start.isoformat(), "end": p.end.isoformat()}
+    out = {"name": p.name, "start": p.start.isoformat(), "end": p.end.isoformat()}
+    if p.kind == logic.KIND_CUSTOM:
+        out["description"] = p.description
+    return out
+
+
+def _day_off(
+    day,
+    school: list[logic.Period],
+    public: list[logic.Period],
+    custom: list[logic.Period],
+) -> dict[str, Any]:
+    """Which sources make ``day`` a day off (name of each, or None)."""
+    found = {
+        "school_holiday": logic.period_on(day, school),
+        "public_holiday": logic.period_on(day, public),
+        "free_day": logic.period_on(day, custom),
+    }
+    return {
+        "on": any(p is not None for p in found.values()),
+        **{key: (p.name if p is not None else None) for key, p in found.items()},
+    }
 
 
 def stale_issue_id(entry_id: str) -> str:
@@ -77,6 +106,8 @@ class SchoolHolidaysCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(hours=hours),
         )
         self._periods: list[logic.Period] = []
+        self._public: list[logic.Period] = []
+        self.free_days = FreeDayStore(hass, entry.entry_id)
         self.last_successful_update: datetime | None = None
 
     @property
@@ -103,7 +134,8 @@ class SchoolHolidaysCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return logic.iso_language(self.language_setting, DEFAULT_LANGUAGE)
 
     async def async_setup(self) -> None:
-        """First refresh plus the local midnight rollover and language listener."""
+        """Load free days, first refresh, midnight rollover and language listener."""
+        await self.free_days.async_load()
         await self.async_config_entry_first_refresh()
         # Recompute today/tomorrow at local midnight WITHOUT a network call, so
         # the sensors flip exactly at the day boundary even if the API is down.
@@ -127,9 +159,36 @@ class SchoolHolidaysCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.hass, self.async_request_refresh(), f"{DOMAIN}_language_refresh"
             )
 
+    @property
+    def all_periods(self) -> list[logic.Period]:
+        """School holidays, public holidays and free days, sorted (for the calendar)."""
+        return sorted(
+            [*self._periods, *self._public, *self.free_days.periods],
+            key=lambda p: (p.start, p.end),
+        )
+
+    async def async_add_free_day(self, start, end, name: str, description: str | None) -> str:
+        """Store a new free day and update all entities right away."""
+        uid = await self.free_days.async_add(start, end, name, description)
+        self.async_set_updated_data(self._derive())
+        return uid
+
+    async def async_update_free_day(
+        self, uid: str, start, end, name: str, description: str | None
+    ) -> None:
+        """Change a free day and update all entities right away."""
+        await self.free_days.async_update(uid, start, end, name, description)
+        self.async_set_updated_data(self._derive())
+
+    async def async_delete_free_day(self, uid: str) -> None:
+        """Delete a free day and update all entities right away."""
+        await self.free_days.async_delete(uid)
+        self.async_set_updated_data(self._derive())
+
     def _derive(self) -> dict[str, Any]:
         today = dt_util.now().date()
         tomorrow = today + timedelta(days=1)
+        custom = self.free_days.periods
         nxt = logic.current_or_next(today, self._periods)
         nxt_dict = _period_dict(nxt)
         if nxt_dict is not None:
@@ -142,6 +201,12 @@ class SchoolHolidaysCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             DATA_TOMORROW_PERIOD: _period_dict(logic.period_on(tomorrow, self._periods)),
             DATA_NEXT: nxt_dict,
             DATA_LAST_SUCCESS: self.last_successful_update,
+            DATA_PUBLIC_HOLIDAYS: len(self._public),
+            DATA_FREE_DAYS: len(custom),
+            DATA_FREE_TODAY: _period_dict(logic.period_on(today, custom)),
+            DATA_FREE_TOMORROW: _period_dict(logic.period_on(tomorrow, custom)),
+            DATA_DAY_OFF_TODAY: _day_off(today, self._periods, self._public, custom),
+            DATA_DAY_OFF_TOMORROW: _day_off(tomorrow, self._periods, self._public, custom),
         }
 
     @callback
@@ -170,7 +235,7 @@ class SchoolHolidaysCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         today = dt_util.now().date()
-        valid_from = today.isoformat()
+        valid_from = (today - timedelta(days=LOOKBACK_DAYS)).isoformat()
         valid_to = (today + timedelta(days=LOOKAHEAD_DAYS)).isoformat()
         session = async_get_clientsession(self.hass)
         language = self.language
@@ -179,7 +244,7 @@ class SchoolHolidaysCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 session, self.country, self.subdivision, valid_from, valid_to, language
             )
         except api.OpenHolidaysError as err:
-            if not self._periods:
+            if self.last_successful_update is None:
                 # No cached data yet (e.g. the very first refresh): surface the
                 # failure so Home Assistant retries the setup instead of silently
                 # creating empty sensors. On the first refresh this becomes
@@ -200,4 +265,23 @@ class SchoolHolidaysCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._periods = logic.parse_periods(raw, language)
             self.last_successful_update = dt_util.utcnow()
             ir.async_delete_issue(self.hass, DOMAIN, stale_issue_id(self.config_entry.entry_id))
+        await self._async_update_public(session, valid_from, valid_to, language)
         return self._derive()
+
+    async def _async_update_public(
+        self, session, valid_from: str, valid_to: str, language: str
+    ) -> None:
+        """Fetch public holidays; a failure only keeps the previous ones (best effort)."""
+        try:
+            raw = await api.async_get_public_holidays(
+                session, self.country, self.subdivision, valid_from, valid_to, language
+            )
+        except api.OpenHolidaysError as err:
+            _LOGGER.warning(
+                "Public holidays could not be fetched for %s (%s); keeping %d cached",
+                self.region_name,
+                err,
+                len(self._public),
+            )
+            return
+        self._public = logic.parse_periods(raw, language, logic.KIND_PUBLIC)

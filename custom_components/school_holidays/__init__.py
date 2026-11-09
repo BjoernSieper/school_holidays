@@ -12,8 +12,9 @@ from .coordinator import (
     SchoolHolidaysCoordinator,
     stale_issue_id,
 )
+from .free_days import async_remove_store
 
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.CALENDAR, Platform.SENSOR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: SchoolHolidaysConfigEntry) -> bool:
@@ -33,8 +34,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: SchoolHolidaysConfigEnt
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: SchoolHolidaysConfigEntry) -> None:
-    """Drop a pending repair issue when the entry is deleted."""
+    """Drop a pending repair issue and the stored free days when the entry is deleted."""
     ir.async_delete_issue(hass, DOMAIN, stale_issue_id(entry.entry_id))
+    await async_remove_store(hass, entry.entry_id)
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: SchoolHolidaysConfigEntry) -> None:

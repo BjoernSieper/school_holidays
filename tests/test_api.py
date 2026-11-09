@@ -80,3 +80,17 @@ async def test_countries_localized_and_sorted(hass: HomeAssistant, aioclient_moc
         {"code": "FR", "name": "Frankreich"},
         {"code": "AT", "name": "Österreich"},
     ]
+
+
+async def test_public_holidays_ok(hass: HomeAssistant, aioclient_mock) -> None:
+    """Public holidays use the same window/region parameters as school holidays."""
+    payload = [{"startDate": "2026-10-03", "endDate": "2026-10-03", "nationwide": True}]
+    aioclient_mock.get(f"{api.BASE}/PublicHolidays", json=payload)
+    data = await api.async_get_public_holidays(
+        async_get_clientsession(hass), "de", "DE-HE", "2026-10-01", "2026-12-31", "de"
+    )
+    assert data == payload
+    query = aioclient_mock.mock_calls[0][1].query
+    assert query["countryIsoCode"] == "DE"
+    assert query["subdivisionCode"] == "DE-HE"
+    assert query["languageIsoCode"] == "DE"

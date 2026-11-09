@@ -5,14 +5,25 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 
+KIND_SCHOOL = "school"
+KIND_PUBLIC = "public"
+KIND_CUSTOM = "custom"
+
 
 @dataclass(frozen=True)
 class Period:
-    """A single holiday period."""
+    """A single holiday period (both ``start`` and ``end`` are part of it).
+
+    ``kind`` tells where it comes from: a school holiday or public holiday from
+    openholidaysapi.org, or a free day the user added (those carry a ``uid``).
+    """
 
     start: date
     end: date
     name: str
+    kind: str = KIND_SCHOOL
+    uid: str | None = None
+    description: str | None = None
 
 
 def _to_date(value) -> date | None:
@@ -44,7 +55,7 @@ def pick_name(names: list[dict] | None, language: str) -> str:
     return (names[0].get("text", "") or "") if names else ""
 
 
-def parse_periods(raw: list[dict], language: str = "EN") -> list[Period]:
+def parse_periods(raw: list[dict], language: str = "EN", kind: str = KIND_SCHOOL) -> list[Period]:
     """Turn the openholidaysapi JSON list into sorted Period objects.
 
     Each raw item has ``startDate``, ``endDate`` and ``name`` (a list of
@@ -56,7 +67,9 @@ def parse_periods(raw: list[dict], language: str = "EN") -> list[Period]:
         end = _to_date(item.get("endDate"))
         if start is None or end is None:
             continue
-        out.append(Period(start=start, end=end, name=pick_name(item.get("name"), language)))
+        out.append(
+            Period(start=start, end=end, name=pick_name(item.get("name"), language), kind=kind)
+        )
     out.sort(key=lambda p: p.start)
     return out
 
@@ -67,6 +80,11 @@ def period_on(day: date, periods: list[Period]) -> Period | None:
         if p.start <= day <= p.end:
             return p
     return None
+
+
+def to_date(value) -> date | None:
+    """Public wrapper of the ISO-date coercion (used for stored free days)."""
+    return _to_date(value)
 
 
 def is_holiday(day: date, periods: list[Period]) -> bool:

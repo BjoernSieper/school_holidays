@@ -84,3 +84,23 @@ async def async_get_school_holidays(
     if subdivision:
         params["subdivisionCode"] = subdivision
     return await _get(session, "SchoolHolidays", params)
+
+
+async def async_get_public_holidays(
+    session: ClientSession,
+    country: str,
+    subdivision: str | None,
+    valid_from: str,
+    valid_to: str,
+    language: str = "EN",
+) -> list[dict]:
+    """Return the raw PublicHolidays list (nationwide + the region's own) for the window."""
+    params = {
+        "countryIsoCode": country.upper(),
+        "languageIsoCode": language.upper(),
+        "validFrom": valid_from,
+        "validTo": valid_to,
+    }
+    if subdivision:
+        params["subdivisionCode"] = subdivision
+    return await _get(session, "PublicHolidays", params)

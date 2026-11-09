@@ -104,3 +104,10 @@ def test_pick_name():
 
 def test_parse_periods_default_language_is_english():
     assert logic.parse_periods(RAW)[0].name == "Summer break"
+
+
+def test_parse_periods_kind():
+    assert logic.parse_periods(RAW, "DE")[0].kind == logic.KIND_SCHOOL
+    public = logic.parse_periods(RAW, "DE", logic.KIND_PUBLIC)
+    assert {p.kind for p in public} == {logic.KIND_PUBLIC}
+    assert public[0].uid is None

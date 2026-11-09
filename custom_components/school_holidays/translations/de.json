@@ -63,6 +63,23 @@
       },
       "tomorrow": {
         "name": "Schulferien morgen"
+      },
+      "free_day_today": {
+        "name": "Freier Tag heute"
+      },
+      "free_day_tomorrow": {
+        "name": "Freier Tag morgen"
+      },
+      "day_off_today": {
+        "name": "Frei heute"
+      },
+      "day_off_tomorrow": {
+        "name": "Frei morgen"
+      }
+    },
+    "calendar": {
+      "calendar": {
+        "name": "Ferien und freie Tage"
       }
     },
     "sensor": {
@@ -78,6 +95,14 @@
     "stale_data": {
       "title": "Schulferien-Daten für {region} sind veraltet",
       "description": "Die Schulferien-Daten für **{region}** konnten seit {days} Tagen nicht aktualisiert werden (letzte erfolgreiche Aktualisierung: {last_update}). Die Sensoren arbeiten mit den zwischengespeicherten Daten weiter, seitdem veröffentlichte Änderungen fehlen aber.\n\nPrüfe, ob Home Assistant `openholidaysapi.org` erreichen kann. Diese Meldung verschwindet nach der nächsten erfolgreichen Aktualisierung automatisch."
+    }
+  },
+  "exceptions": {
+    "recurring_not_supported": {
+      "message": "Wiederkehrende Termine werden nicht unterstützt. Bitte jeden freien Tag (oder einen Zeitraum) einzeln anlegen."
+    },
+    "free_day_not_found": {
+      "message": "Nur selbst angelegte freie Tage können geändert oder gelöscht werden. Schulferien und Feiertage kommen von openholidaysapi.org."
     }
   }
 }

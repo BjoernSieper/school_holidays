@@ -63,6 +63,23 @@
       },
       "tomorrow": {
         "name": "Vacaciones escolares mañana"
+      },
+      "free_day_today": {
+        "name": "Día libre hoy"
+      },
+      "free_day_tomorrow": {
+        "name": "Día libre mañana"
+      },
+      "day_off_today": {
+        "name": "Libre hoy"
+      },
+      "day_off_tomorrow": {
+        "name": "Libre mañana"
+      }
+    },
+    "calendar": {
+      "calendar": {
+        "name": "Vacaciones escolares y días libres"
       }
     },
     "sensor": {
@@ -78,6 +95,14 @@
     "stale_data": {
       "title": "Los datos de vacaciones escolares de {region} están desactualizados",
       "description": "Los datos de vacaciones escolares de **{region}** no se han podido actualizar desde hace {days} días (última actualización correcta: {last_update}). Los sensores siguen funcionando con las fechas guardadas, pero faltan los cambios publicados desde entonces.\n\nComprueba que Home Assistant puede acceder a `openholidaysapi.org`. Este aviso desaparece automáticamente tras la próxima actualización correcta."
+    }
+  },
+  "exceptions": {
+    "recurring_not_supported": {
+      "message": "Los eventos periódicos no son compatibles. Crea cada día libre (o un rango de fechas) por separado."
+    },
+    "free_day_not_found": {
+      "message": "Solo se pueden modificar o eliminar los días libres que hayas añadido tú. Las vacaciones escolares y los festivos provienen de openholidaysapi.org."
     }
   }
 }

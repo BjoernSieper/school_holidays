@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -28,6 +30,22 @@ SUBDIVISIONS = [
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Load the custom integration in every test."""
     yield
+
+
+PUBLIC_API = "custom_components.school_holidays.api.async_get_public_holidays"
+
+
+@pytest.fixture(autouse=True)
+def public_holidays_api(request):
+    """No public holidays unless a test sets ``return_value``/``side_effect``.
+
+    The API client tests exercise the real function, so they are left alone.
+    """
+    if request.module.__name__.endswith("test_api"):
+        yield None
+        return
+    with patch(PUBLIC_API, return_value=[]) as mock:
+        yield mock
 
 
 @pytest.fixture

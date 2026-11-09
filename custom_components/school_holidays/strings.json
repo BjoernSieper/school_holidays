@@ -63,6 +63,23 @@
       },
       "tomorrow": {
         "name": "School holidays tomorrow"
+      },
+      "free_day_today": {
+        "name": "Free day today"
+      },
+      "free_day_tomorrow": {
+        "name": "Free day tomorrow"
+      },
+      "day_off_today": {
+        "name": "Day off today"
+      },
+      "day_off_tomorrow": {
+        "name": "Day off tomorrow"
+      }
+    },
+    "calendar": {
+      "calendar": {
+        "name": "School holidays and days off"
       }
     },
     "sensor": {
@@ -78,6 +95,14 @@
     "stale_data": {
       "title": "School holiday data for {region} is outdated",
       "description": "The school holiday data for **{region}** could not be refreshed for {days} days (last successful update: {last_update}). The sensors keep working with the cached dates, but changes published since then are missing.\n\nCheck that Home Assistant can reach `openholidaysapi.org`. This message disappears automatically after the next successful update."
+    }
+  },
+  "exceptions": {
+    "recurring_not_supported": {
+      "message": "Recurring events are not supported. Please create each free day (or a date range) separately."
+    },
+    "free_day_not_found": {
+      "message": "Only free days you added yourself can be changed or deleted. School and public holidays come from openholidaysapi.org."
     }
   }
 }

@@ -63,6 +63,23 @@
       },
       "tomorrow": {
         "name": "Vacances scolaires demain"
+      },
+      "free_day_today": {
+        "name": "Jour libre aujourd'hui"
+      },
+      "free_day_tomorrow": {
+        "name": "Jour libre demain"
+      },
+      "day_off_today": {
+        "name": "Congé aujourd'hui"
+      },
+      "day_off_tomorrow": {
+        "name": "Congé demain"
+      }
+    },
+    "calendar": {
+      "calendar": {
+        "name": "Vacances scolaires et jours libres"
       }
     },
     "sensor": {
@@ -78,6 +95,14 @@
     "stale_data": {
       "title": "Les données de vacances scolaires pour {region} sont obsolètes",
       "description": "Les données de vacances scolaires pour **{region}** n'ont pas pu être actualisées depuis {days} jours (dernière mise à jour réussie : {last_update}). Les capteurs continuent de fonctionner avec les dates en cache, mais les modifications publiées depuis manquent.\n\nVérifiez que Home Assistant peut joindre `openholidaysapi.org`. Ce message disparaît automatiquement après la prochaine mise à jour réussie."
+    }
+  },
+  "exceptions": {
+    "recurring_not_supported": {
+      "message": "Les événements récurrents ne sont pas pris en charge. Crée chaque jour libre (ou une période) séparément."
+    },
+    "free_day_not_found": {
+      "message": "Seuls les jours libres que tu as ajoutés peuvent être modifiés ou supprimés. Les vacances scolaires et les jours fériés proviennent d'openholidaysapi.org."
     }
   }
 }

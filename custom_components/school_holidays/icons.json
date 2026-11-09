@@ -6,6 +6,23 @@
       },
       "tomorrow": {
         "default": "mdi:calendar-arrow-right"
+      },
+      "free_day_today": {
+        "default": "mdi:calendar-star"
+      },
+      "free_day_tomorrow": {
+        "default": "mdi:calendar-arrow-right"
+      },
+      "day_off_today": {
+        "default": "mdi:beach"
+      },
+      "day_off_tomorrow": {
+        "default": "mdi:palm-tree"
+      }
+    },
+    "calendar": {
+      "calendar": {
+        "default": "mdi:calendar-month"
       }
     },
     "sensor": {
